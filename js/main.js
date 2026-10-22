@@ -1,0 +1,211 @@
+// main.js
+// Rendering logic only — no content lives here.
+// Reads from portfolioData (defined in data.js, loaded before this
+// script in index.html) and injects it into the right HTML containers.
+//
+// BEM naming convention used throughout:
+//   block           → independent component      e.g. app-card
+//   block__element  → child of that block        e.g. app-card__name
+//   block--modifier → variant of block/element   e.g. skill-tag--muted
+//
+// Reference: https://getbem.com/naming/
+
+
+// ─── WAIT FOR DOM ─────────────────────────────────────────────────────────────
+// Ensures ALL HTML elements exist before main.js tries to find and fill them.
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/Document/DOMContentLoaded_event
+document.addEventListener("DOMContentLoaded", function () {
+
+  renderHero();
+  renderAbout();
+  renderTechStack();
+  renderApps();
+  renderCvSamples();
+  renderPortfolioSamples();
+  renderContact();
+  initNavToggle();
+
+});
+
+
+// ─── MOBILE NAV TOGGLE ───────────────────────────────────────────────────────
+// Connects the hamburger button (nav__toggle) to the links menu (nav__links).
+// CSS already hides nav__links on mobile and shows it when the
+// nav__links--open modifier class is present (see style.css responsive section).
+// This function's only job is to add/remove that class on click.
+function initNavToggle() {
+  const toggleButton = document.querySelector(".nav__toggle");
+  const navLinks      = document.querySelector(".nav__links");
+
+  // Guard clause — if either element is missing, exit early instead of
+  // throwing an error when .addEventListener is called on null.
+  if (!toggleButton || !navLinks) return;
+
+  toggleButton.addEventListener("click", function () {
+    // classList.toggle() adds the class if it's absent, removes it if present.
+    // This is what lets a SINGLE click handler open AND close the menu —
+    // no need to track open/closed state manually in a variable.
+    // Reference: https://developer.mozilla.org/en-US/docs/Web/API/Element/classList
+    navLinks.classList.toggle("nav__links--open");
+  });
+
+  // Bonus UX fix: when a visitor taps a link inside the open mobile menu,
+  // close the menu automatically instead of leaving it open after navigating.
+  // We attach this listener to each individual link.
+  const allLinks = navLinks.querySelectorAll(".nav__link");
+  allLinks.forEach(function (link) {
+    link.addEventListener("click", function () {
+      navLinks.classList.remove("nav__links--open");
+    });
+  });
+}
+
+
+// ─── HERO ──────────────────────────────────────────────────────────────────────
+// Block: hero
+// Elements: hero__tagline, hero__subtext
+function renderHero() {
+  const container = document.getElementById("hero-content");
+  if (!container) return;
+
+  container.innerHTML = `
+    <h1 class="hero__tagline">${portfolioData.hero.tagline}</h1>
+    <p class="hero__subtext">${portfolioData.hero.subtext}</p>
+  `;
+}
+
+
+// ─── ABOUT ────────────────────────────────────────────────────────────────────
+// Block: about
+// Elements: about__paragraph
+function renderAbout() {
+  const container = document.getElementById("about-content");
+  if (!container) return;
+
+  // .map() wraps each paragraph string in a <p> tag.
+  // .join("") collapses the resulting array into one HTML string.
+  // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map
+  const paragraphsHTML = portfolioData.about.paragraphs
+    .map(paragraph => `<p class="about__paragraph">${paragraph}</p>`)
+    .join("");
+
+  container.innerHTML = paragraphsHTML;
+}
+
+
+// ─── TECH STACK & ROLES ───────────────────────────────────────────────────────
+// Block: tech-stack
+// Elements: tech-stack__summary, tech-stack__block, tech-stack__label,
+//           tech-stack__roles, tech-stack__role, tech-stack__skills
+// Standalone blocks: skill-tag, skill-tag--muted (modifier for background stack)
+function renderTechStack() {
+  const container = document.getElementById("techstack-content");
+  if (!container) return;
+
+  const rolesHTML = portfolioData.techStack.roles
+    .map(role => `<li class="tech-stack__role">${role}</li>`)
+    .join("");
+
+  const skillsHTML = portfolioData.techStack.skills
+    .map(skill => `<span class="skill-tag">${skill}</span>`)
+    .join("");
+
+  // --muted modifier signals these are background/prior stack,
+  // not the current primary tools. The CSS will style them differently
+  // (e.g. lower opacity or a different border) without needing a separate class.
+  const backgroundHTML = portfolioData.techStack.background
+    .map(tech => `<span class="skill-tag skill-tag--muted">${tech}</span>`)
+    .join("");
+
+  container.innerHTML = `
+    <p class="tech-stack__summary">${portfolioData.techStack.summary}</p>
+
+    <div class="tech-stack__block">
+      <h3 class="tech-stack__label">Roles I take on</h3>
+      <ul class="tech-stack__roles">${rolesHTML}</ul>
+    </div>
+
+    <div class="tech-stack__block">
+      <h3 class="tech-stack__label">Current Stack</h3>
+      <div class="tech-stack__skills">${skillsHTML}</div>
+    </div>
+
+    <div class="tech-stack__block">
+      <h3 class="tech-stack__label">Background</h3>
+      <div class="tech-stack__skills">${backgroundHTML}</div>
+    </div>
+  `;
+}
+
+
+// ─── APPS ─────────────────────────────────────────────────────────────────────
+// Block: apps
+// Elements: apps__note
+// Standalone block: app-card
+// App card elements: app-card__name, app-card__description,
+//                    app-card__decision, app-card__decision-label, app-card__tech
+// Standalone block: tech-tag (used inside app-card but is its own block in BEM
+//                   because it can appear in other contexts independently)
+// Standalone block: gitHub-link (used inside app-card but is its own block in BEM because it can appear in other contexts independently)
+function renderApps() {
+  const container = document.getElementById("apps-content");
+  if (!container) return;
+
+  const appsHTML = portfolioData.apps
+    .map(app => {
+      // Nested .map() — loops over each app's tech array
+      // and wraps each item in a tech-tag span.
+      const techTagsHTML = app.tech
+        .map(tech => `<span class="tech-tag">${tech}</span>`)
+        .join("");
+
+    // Generate a GitHub link if one is available. 
+    const githubLinkHTML = app.github 
+        ? `<a 
+        class="app-card__link" 
+        href="${app.github}" 
+        target="_blank" rel="noopener noreferrer" >View on GitHub</a>` 
+        : "";
+
+      return `
+        <div class="app-card">
+          <h3 class="app-card__name">${app.name}</h3>
+          <p class="app-card__description">${app.description}</p>
+          <p class="app-card__decision">
+            <span class="app-card__decision-label">The decision that mattered: </span>
+            ${app.decision}
+          </p>
+          <div class="app-card__tech">${techTagsHTML}</div>
+          <div class="app-card__links"> ${githubLinkHTML} </div> 
+        </div>`;
+    })
+    .join("");
+
+  container.innerHTML = `
+    <p class="apps__note">Built in Python/FastAPI, before my transition to the JavaScript ecosystem.</p>
+    ${appsHTML}
+  `;
+}
+
+
+// ─── CONTACT ──────────────────────────────────────────────────────────────────
+// Block: contact
+// Elements: contact__note, contact__link
+function renderContact() {
+  const container = document.getElementById("contact-content");
+  if (!container) return;
+
+  if (!portfolioData.contact.email) {
+    container.innerHTML = `
+      <p class="contact__note">${portfolioData.contact.note}</p>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <p class="contact__note">Let's work together.</p>
+    <a class="contact__link" href="mailto:${portfolioData.contact.email}">
+      ${portfolioData.contact.email}
+    </a>
+  `;
+}
